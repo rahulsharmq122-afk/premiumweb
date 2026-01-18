@@ -4,12 +4,18 @@ import { ShoppingCart, Settings, Plus, Trash2, Sun, Moon, Menu, X, ArrowUp, Uplo
 
 const USD_TO_INR = 84
 
+const FALLBACK_PRODUCTS = [
+    { id: 1, title: "Netflix Premium 4K", price: "12.99", image: "" },
+    { id: 2, title: "Spotify Premium 1yr", price: "24.99", image: "" },
+    { id: 3, title: "YouTube Premium", price: "3.50", image: "" }
+]
+
 const App = () => {
     const [loading, setLoading] = useState(true)
     const [progress, setProgress] = useState(0)
     const [activeTab, setActiveTab] = useState('shop')
-    const [products, setProducts] = useState([])
-    const [settings, setSettings] = useState({ whatsapp: '' })
+    const [products, setProducts] = useState(FALLBACK_PRODUCTS)
+    const [settings, setSettings] = useState({ whatsapp: '6350117452' })
     const [isDarkMode, setIsDarkMode] = useState(true)
     const [isSidebarOpen, setIsSidebarOpen] = useState(false)
     const [showScrollTop, setShowScrollTop] = useState(false)
@@ -21,10 +27,10 @@ const App = () => {
             setProgress(prev => {
                 if (prev >= 100) {
                     clearInterval(timer)
-                    setTimeout(() => setLoading(false), 200)
+                    setTimeout(() => setLoading(false), 300)
                     return 100
                 }
-                return prev + 25
+                return prev + 10
             })
         }, 50)
 
@@ -34,13 +40,16 @@ const App = () => {
         const fetchData = async () => {
             try {
                 const [pRes, sRes] = await Promise.all([
-                    fetch('/api/products'),
-                    fetch('/api/settings')
+                    fetch('/api/products').catch(() => null),
+                    fetch('/api/settings').catch(() => null)
                 ])
-                setProducts(await pRes.json())
-                setSettings(await sRes.json())
+                if (pRes && pRes.ok) setProducts(await pRes.json())
+                if (sRes && sRes.ok) setSettings(await sRes.json())
             } catch (err) {
-                console.error("Data error:", err)
+                console.warn("Using offline fallback data")
+            } finally {
+                // Ensure loading ends even if fetch fails
+                setTimeout(() => setLoading(false), 1000)
             }
         }
         fetchData()
@@ -58,10 +67,18 @@ const App = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ whatsapp: num })
             })
-            const data = await res.json()
-            setSettings(data)
-            alert("WhatsApp Updated Successfully! ✅")
-        } catch (err) { alert("Failed to update.") }
+            if (res.ok) {
+                const data = await res.json()
+                setSettings(data)
+                alert("WhatsApp Updated Successfully! ✅")
+            } else {
+                setSettings({ ...settings, whatsapp: num })
+                alert("Offline Mode: Number updated locally! ✅")
+            }
+        } catch (err) {
+            setSettings({ ...settings, whatsapp: num })
+            alert("Offline Mode: Number updated locally! ✅")
+        }
     }
 
     const deleteProduct = async (id) => {
@@ -69,7 +86,10 @@ const App = () => {
         try {
             await fetch(`/api/products/${id}`, { method: 'DELETE' })
             setProducts(products.filter(p => p.id !== id))
-        } catch (err) { alert("Failed to delete.") }
+        } catch (err) {
+            setProducts(products.filter(p => p.id !== id))
+            alert("Removed locally (Offline) ✅")
+        }
     }
 
     const addProduct = async (p) => {
@@ -79,14 +99,29 @@ const App = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(p)
             })
-            const newP = await res.json()
-            setProducts([...products, newP])
-        } catch (err) { alert("Failed to add product.") }
+            if (res.ok) {
+                const newP = await res.json()
+                setProducts([...products, newP])
+            } else {
+                setProducts([...products, { ...p, id: Date.now() }])
+                alert("Added locally (Offline) ✅")
+            }
+        } catch (err) {
+            setProducts([...products, { ...p, id: Date.now() }])
+            alert("Added locally (Offline) ✅")
+        }
     }
 
     if (loading) {
         return (
             <div className="loading-container">
+                <style>{`
+                    .loading-container { position: fixed; inset: 0; background: #000; display: flex; align-items: center; justify-content: center; z-index: 9999; }
+                    .loading-box { width: 300px; text-align: center; }
+                    .loading-logo { font-size: 24px; font-weight: 800; color: #fff; margin-bottom: 20px; letter-spacing: 4px; }
+                    .loading-bar-bg { width: 100%; height: 2px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; }
+                    .loading-bar-fill { height: 100%; background: #00ffa3; transition: width 0.3s ease; }
+                `}</style>
                 <div className="loading-box">
                     <div className="loading-logo">PREMIUM</div>
                     <div className="loading-bar-bg">
@@ -116,7 +151,6 @@ const App = () => {
             />
 
             <main className="main-content">
-                {/* Removed AnimatePresence for stability as requested (no fade) */}
                 {activeTab === 'shop' && <ShopView products={products} whatsapp={settings.whatsapp} />}
                 {activeTab === 'admin' && (
                     <AdminView
@@ -198,7 +232,7 @@ const ShopView = ({ products, whatsapp }) => (
 )
 
 const ProductCard = ({ title, price, image, whatsapp }) => {
-    const usd = parseFloat(price.replace(/[^0-9.]/g, '')) || 0
+    const usd = parseFloat(String(price).replace(/[^0-9.]/g, '')) || 0
     const inr = (usd * USD_TO_INR).toLocaleString('en-IN')
 
     const handleBuy = () => {
@@ -270,7 +304,7 @@ const AdminView = ({ products, whatsapp, onUpdateWhatsapp, onAddProduct, onDelet
                     </thead>
                     <tbody>
                         {products.map(p => {
-                            const usd = parseFloat(p.price.replace(/[^0-9.]/g, '')) || 0
+                            const usd = parseFloat(String(p.price).replace(/[^0-9.]/g, '')) || 0
                             const inr = (usd * USD_TO_INR).toLocaleString('en-IN')
                             return (
                                 <tr key={p.id}>
@@ -290,10 +324,9 @@ const AdminView = ({ products, whatsapp, onUpdateWhatsapp, onAddProduct, onDelet
                     </tbody>
                 </table>
 
-                {/* Mobile Admin Cards */}
                 <div className="mobile-admin-grid mobile-only">
                     {products.map(p => {
-                        const usd = parseFloat(p.price.replace(/[^0-9.]/g, '')) || 0
+                        const usd = parseFloat(String(p.price).replace(/[^0-9.]/g, '')) || 0
                         const inr = (usd * USD_TO_INR).toLocaleString('en-IN')
                         return (
                             <div key={p.id} className="admin-p-card glass">
