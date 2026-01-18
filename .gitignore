@@ -1,0 +1,11 @@
+node_modules
+dist
+dist-ssr
+*.local
+.vscode
+.DS_Store
+__pycache__
+*.pyc
+database.json
+.db
+.sqlite
