@@ -1,0 +1,43 @@
+{
+    "products": [
+        {
+            "id": 1,
+            "title": "Premium Netflix 4K",
+            "price": "$12.99",
+            "stock": 45
+        },
+        {
+            "id": 2,
+            "title": "Spotify Premium 1yr",
+            "price": "$24.99",
+            "stock": 12
+        },
+        {
+            "id": 3,
+            "title": "Canva Pro Lifetime",
+            "price": "$5.00",
+            "stock": 89
+        },
+        {
+            "id": 4,
+            "title": "YouTube Premium",
+            "price": "$3.50",
+            "stock": 156
+        },
+        {
+            "title": "Test Product",
+            "price": "99.99",
+            "image": "",
+            "id": 5
+        },
+        {
+            "title": "jjfasd",
+            "price": "4545",
+            "image": "",
+            "id": 6
+        }
+    ],
+    "settings": {
+        "whatsapp": "6350117452"
+    }
+}
